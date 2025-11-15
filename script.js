@@ -322,7 +322,7 @@ clearAllBtn?.addEventListener("click", () => {
   }
 });
 
-/* ---------- Safe suggestion prompts ---------- */
+/* ---------- Safe suggestion prompts (expanded & varied) ---------- */
 const BLOCKLIST = [
   "bleach","suicide","kill","die","harm","self-harm","violence","weapon","drugs","overdose","starve",
   "anorexia","bulimia","purge","cutting","abuse","racist","sex","nsfw","terror","bomb","gun"
@@ -331,9 +331,14 @@ const BLOCKLIST = [
 const FALLBACK_ADVICE = [
   "Name one thing that went okay today.",
   "Drink some water and take three slow breaths.",
-  "Pick the smallest next step and do just that.",
-  "Set a 5-minute timer and start. Stop when it ends.",
-  "Text someone a thank-you or a simple emoji."
+  "Pick the smallest next step and only do that.",
+  "Set a 5-minute timer and stop when it ends.",
+  "Move one thing from your brain to a list.",
+  "Ask yourself: what would ‘just okay’ look like, not ‘perfect’?",
+  "Break your next task into two smaller steps.",
+  "Tidy one tiny area you can see from where you are.",
+  "Give yourself permission to be ‘unfinished’ today.",
+  "Future you will appreciate any tiny bit of kindness you give yourself now."
 ];
 
 const FALLBACK_QUOTES = [
@@ -341,16 +346,30 @@ const FALLBACK_QUOTES = [
   "You don’t need to feel ready to begin.",
   "Done is kinder than perfect.",
   "Your pace is valid.",
-  "Future you will thank you for any tiny progress."
+  "Even slow progress is progress.",
+  "You have got through 100% of your hard days so far.",
+  "Rest is productive when you need it.",
+  "It’s okay to be a work in progress.",
+  "You are allowed to take up space.",
+  "Starting messy still counts as starting."
 ];
 
 const FALLBACK_ACTIVITIES = [
-  "Stretch your neck and shoulders.",
-  "Sit by a window for two minutes.",
-  "Organise one file or one tab.",
-  "Write one sentence about today.",
-  "Put a glass of water within reach."
+  "Stretch your neck and shoulders gently.",
+  "Look out of a window and name five things you can see.",
+  "Put a glass of water within reach and take a sip.",
+  "Write one sentence about how today feels.",
+  "Walk to another room and back slowly.",
+  "Play one favourite song and really listen.",
+  "Organise one icon, one file or one tab.",
+  "Text someone a simple ‘thinking of you’ message.",
+  "Notice three things in the room that you like.",
+  "Set a 2-minute timer and do nothing on purpose."
 ];
+
+let lastAdvice = "";
+let lastQuote = "";
+let lastActivity = "";
 
 function isSafeText(t) {
   if (!t) return false;
@@ -358,11 +377,27 @@ function isSafeText(t) {
   return !BLOCKLIST.some(b => lower.includes(b));
 }
 
+function pickDifferent(arr, last) {
+  if (arr.length <= 1) return arr[0];
+  let candidate = last;
+  let guard = 0;
+  while (candidate === last && guard < 10) {
+    candidate = arr[Math.floor(Math.random() * arr.length)];
+    guard++;
+  }
+  return candidate;
+}
+
 async function safeFetch(url, pick) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 6000);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    // cache-busting param so we don't get the same response over and over
+    const cacheBustUrl = url.includes("?")
+      ? `${url}&ts=${Date.now()}`
+      : `${url}?ts=${Date.now()}`;
+
+    const res = await fetch(cacheBustUrl, { signal: controller.signal });
     if (!res.ok) throw new Error("Network error");
     const data = await res.json();
     clearTimeout(t);
@@ -375,26 +410,41 @@ async function safeFetch(url, pick) {
   }
 }
 
-function choose(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
+/* ---------- Button wiring with richer fallbacks ---------- */
 btnAdvice?.addEventListener("click", async () => {
   suggestionOut.textContent = "Loading…";
   const txt = await safeFetch("https://api.adviceslip.com/advice", d => d.slip?.advice);
-  suggestionOut.textContent = txt || choose(FALLBACK_ADVICE);
+  if (txt) {
+    lastAdvice = txt;
+    suggestionOut.textContent = txt;
+  } else {
+    lastAdvice = pickDifferent(FALLBACK_ADVICE, lastAdvice);
+    suggestionOut.textContent = lastAdvice;
+  }
 });
 
 btnQuote?.addEventListener("click", async () => {
   suggestionOut.textContent = "Loading…";
   const txt = await safeFetch("https://api.quotable.io/random", d => `${d.content} — ${d.author}`);
-  suggestionOut.textContent = txt || choose(FALLBACK_QUOTES);
+  if (txt) {
+    lastQuote = txt;
+    suggestionOut.textContent = txt;
+  } else {
+    lastQuote = pickDifferent(FALLBACK_QUOTES, lastQuote);
+    suggestionOut.textContent = lastQuote;
+  }
 });
 
 btnActivity?.addEventListener("click", async () => {
   suggestionOut.textContent = "Loading…";
   const txt = await safeFetch("https://www.boredapi.com/api/activity", d => d.activity);
-  suggestionOut.textContent = txt || choose(FALLBACK_ACTIVITIES);
+  if (txt) {
+    lastActivity = txt;
+    suggestionOut.textContent = txt;
+  } else {
+    lastActivity = pickDifferent(FALLBACK_ACTIVITIES, lastActivity);
+    suggestionOut.textContent = lastActivity;
+  }
 });
 
 /* ---------------- Boot ---------------- */
