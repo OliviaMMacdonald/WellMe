@@ -1,263 +1,176 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>WellMe – Daily Mood Check-in</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="styles.css" />
-    <!-- Chart.js for mood trend visualisation -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <!-- Application logic -->
-    <script src="script.js" defer></script>
-  </head>
-  <body>
-    <header class="app-header">
-      <div class="brand-wrap">
-        <h1 class="brand">WellMe</h1>
-        <p class="tagline">Small daily check-ins for neurodiverse learners</p>
-      </div>
-      <button
-        id="themeToggle"
-        class="icon-btn"
-        type="button"
-        aria-pressed="false"
-        aria-label="Toggle light or dark mode"
-      >
-        🌙
-      </button>
-    </header>
-
-    <nav class="nav" aria-label="Main">
-      <button
-        class="nav-btn active"
-        type="button"
-        data-target="home"
-      >
-        Home
-      </button>
-      <button
-        class="nav-btn"
-        type="button"
-        data-target="log"
-      >
-        Log today
-      </button>
-      <button
-        class="nav-btn"
-        type="button"
-        data-target="history"
-      >
-        History
-      </button>
-    </nav>
-
-    <div
-      id="reminder"
-      class="reminder"
-      role="status"
-      aria-live="polite"
-      hidden
-    >
-      <div class="reminder-text">
-        <strong>Gentle nudge</strong>
-        <span>Would you like to log today’s mood?</span>
-      </div>
-      <div class="reminder-actions">
-        <button id="reminderLogBtn" class="primary" type="button">
-          Log now
-        </button>
-        <button id="reminderDismissBtn" class="ghost" type="button">
-          Dismiss
-        </button>
-      </div>
+<head>
+  <meta charset="utf-8" />
+  <title>WellMe – Daily Mood Check-In</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-wrap">
+      <h1 class="brand">WellMe</h1>
+      <p class="tagline">Small daily check-ins for neurodiverse learners</p>
     </div>
+    <button id="themeToggle" class="icon-btn" type="button" aria-pressed="false" aria-label="Toggle theme">
+      🌙
+    </button>
+  </header>
 
-    <main class="app-main">
-      <!-- Home view -->
-      <section id="home" class="view active" aria-label="Overview">
-        <article class="card">
-          <h2 tabindex="-1">Today’s emotional snapshot</h2>
-          <p class="lead">
-            Log one small check-in, see your mood trend over time and build a routine
-            that works with your brain, not against it.
-          </p>
+  <nav class="nav" aria-label="Main navigation">
+    <button class="nav-btn active" type="button" data-target="home">Home</button>
+    <button class="nav-btn" type="button" data-target="log">Log today</button>
+    <button class="nav-btn" type="button" data-target="history">History</button>
+  </nav>
 
-          <div class="status-row">
-            <div class="status-pill">
-              <span class="status-label">Last entry</span>
-              <span id="lastEntrySummary" class="status-value">
-                No entries yet
-              </span>
-            </div>
-            <div class="status-pill">
-              <span class="status-label">Days logged</span>
-              <span id="daysLoggedSummary" class="status-value">0</span>
-            </div>
+  <section id="reminder" class="reminder" role="status" aria-live="polite" hidden>
+    <div class="reminder-text">
+      <strong>Gentle nudge</strong>
+      <span>Would you like to log today’s mood?</span>
+    </div>
+    <div class="reminder-actions">
+      <button id="reminderLogBtn" class="primary" type="button">Log now</button>
+      <button id="reminderDismissBtn" class="ghost" type="button">Dismiss</button>
+    </div>
+  </section>
+
+  <main class="app-main">
+    <!-- HOME VIEW -->
+    <section id="home" class="view active" aria-label="Home">
+      <article class="card">
+        <h2>Today’s emotional snapshot</h2>
+        <p class="lead">
+          Log one small check-in, see your mood trend over time, and build a routine that works with your brain, not against it.
+        </p>
+
+        <div class="status-row">
+          <div class="status-pill">
+            <span class="status-label">Last entry</span>
+            <span id="lastEntrySummary" class="status-value">No entries yet</span>
           </div>
-
-          <div class="cta">
-            <button class="primary" type="button" data-target="log">
-              Log today
-            </button>
-            <button class="secondary" type="button" data-target="history">
-              View history
-            </button>
+          <div class="status-pill">
+            <span class="status-label">Days logged</span>
+            <span id="daysLoggedSummary" class="status-value">0</span>
           </div>
-        </article>
+        </div>
 
-        <article class="card card-soft">
-          <h3>Why WellMe?</h3>
+        <div class="cta">
+          <button class="primary" type="button" data-target="log">Log today</button>
+          <button class="secondary" type="button" data-target="history">View history</button>
+        </div>
+      </article>
+
+      <article class="card card-soft">
+        <h3>How WellMe works</h3>
+        <p class="lead small">
+          Choose a mood, add a short note if you want to, and WellMe quietly keeps track. No logins, no sharing, just a record you control.
+        </p>
+        <ul class="feature-list">
+          <li><span>•</span><span>Designed with ADHD and autistic learners in mind.</span></li>
+          <li><span>•</span><span>Local storage only – entries stay on your device.</span></li>
+          <li><span>•</span><span>Chart view to spot simple patterns over time.</span></li>
+        </ul>
+        <p class="note">
+          Tip: aim for “tiny and regular” rather than “perfect”. One line is enough.
+        </p>
+      </article>
+    </section>
+
+    <!-- LOG VIEW -->
+    <section id="log" class="view" aria-label="Log today">
+      <article class="card">
+        <h2>Log today’s mood</h2>
+        <p class="lead">
+          Pick the option that feels closest. There are no right or wrong answers.
+        </p>
+
+        <div class="mood-scale" aria-label="Mood scale">
+          <button class="mood" type="button" data-value="1">
+            <span>😞</span>
+            <span class="mood-label">Awful</span>
+          </button>
+          <button class="mood" type="button" data-value="2">
+            <span>🙁</span>
+            <span class="mood-label">Bad</span>
+          </button>
+          <button class="mood" type="button" data-value="3">
+            <span>😐</span>
+            <span class="mood-label">Okay</span>
+          </button>
+          <button class="mood" type="button" data-value="4">
+            <span>🙂</span>
+            <span class="mood-label">Good</span>
+          </button>
+          <button class="mood" type="button" data-value="5">
+            <span>😄</span>
+            <span class="mood-label">Great</span>
+          </button>
+        </div>
+
+        <form id="entryForm" novalidate>
+          <label for="noteGood">What went okay or better today? (optional)</label>
+          <textarea
+            id="noteGood"
+            name="noteGood"
+            placeholder="E.g. I finished a task, spoke to a friend, or took a break when I needed one."></textarea>
+
+          <label for="noteTomorrow">One small thing for tomorrow (optional)</label>
+          <textarea
+            id="noteTomorrow"
+            name="noteTomorrow"
+            placeholder="E.g. reply to one message, start homework for 5 minutes, go to bed 10 minutes earlier."></textarea>
+
+          <div class="form-actions">
+            <button type="submit" class="primary">Save entry</button>
+            <button type="button" id="clearToday" class="secondary">Clear form</button>
+          </div>
+        </form>
+
+        <section class="suggestions" aria-label="Supportive suggestions">
+          <h3>Helpful nudge</h3>
           <p class="lead small">
-            WellMe is a mobile-first wellbeing tool designed for learners with ADHD,
-            Autism and other neurodivergent profiles who may find long forms, logins
-            and complex apps overwhelming.
+            If you feel stuck, pick one of these for a quick idea or perspective.
           </p>
-          <ul class="feature-list">
-            <li>• One-tap mood logging with optional notes</li>
-            <li>• Local only – no account or password needed</li>
-            <li>• Simple mood trend visualisation over time</li>
-            <li>• Gentle suggestions when you feel stuck</li>
-          </ul>
-          <p class="note">
-            All data stays in the browser on this device. Clearing browser data will
-            remove entries.
-          </p>
-        </article>
-      </section>
-
-      <!-- Log view -->
-      <section id="log" class="view" aria-label="Log today">
-        <article class="card">
-          <h2 tabindex="-1">Log today’s mood</h2>
-          <p class="lead small">
-            Choose the mood that feels closest and add a few short notes if helpful.
-          </p>
-
-          <form id="entryForm" autocomplete="off">
-            <div class="mood-scale" aria-label="Mood scale 1 to 5">
-              <button
-                type="button"
-                class="mood"
-                data-value="1"
-                aria-label="Awful"
-              >
-                <span>😞</span>
-                <span class="mood-label">Awful</span>
-              </button>
-              <button
-                type="button"
-                class="mood"
-                data-value="2"
-                aria-label="Bad"
-              >
-                <span>🙁</span>
-                <span class="mood-label">Bad</span>
-              </button>
-              <button
-                type="button"
-                class="mood"
-                data-value="3"
-                aria-label="Okay"
-              >
-                <span>😐</span>
-                <span class="mood-label">Okay</span>
-              </button>
-              <button
-                type="button"
-                class="mood"
-                data-value="4"
-                aria-label="Good"
-              >
-                <span>🙂</span>
-                <span class="mood-label">Good</span>
-              </button>
-              <button
-                type="button"
-                class="mood"
-                data-value="5"
-                aria-label="Great"
-              >
-                <span>😄</span>
-                <span class="mood-label">Great</span>
-              </button>
-            </div>
-
-            <label for="noteGood">Something that went okay or well today</label>
-            <textarea
-              id="noteGood"
-              placeholder="For example: I finished a task, answered a message, or took a break when I needed one."
-            ></textarea>
-
-            <label for="noteTomorrow">One small intention for next time</label>
-            <textarea
-              id="noteTomorrow"
-              placeholder="For example: Start one task for five minutes, or message a friend."
-            ></textarea>
-
-            <div class="form-actions">
-              <button type="submit" class="primary">
-                Save entry
-              </button>
-              <button type="button" id="clearToday" class="ghost">
-                Clear form
-              </button>
-            </div>
-          </form>
-
-          <section class="suggestions" aria-label="Support suggestions">
-            <h3>Need a nudge?</h3>
-            <p class="small">
-              These quick prompts are optional. Use them if you feel stuck or low on
-              ideas.
-            </p>
-            <div class="suggestion-actions">
-              <button id="btnAdvice" class="chip" type="button">
-                Advice
-              </button>
-              <button id="btnQuote" class="chip" type="button">
-                Quote
-              </button>
-              <button id="btnActivity" class="chip" type="button">
-                Small activity
-              </button>
-            </div>
-            <output id="suggestionOut"></output>
-          </section>
-        </article>
-      </section>
-
-      <!-- History view -->
-      <section id="history" class="view" aria-label="History">
-        <article class="card">
-          <h2 tabindex="-1">Mood history</h2>
-          <p class="lead small">
-            A simple view of recent entries. This is designed to support reflection,
-            not to diagnose or score.
-          </p>
-
-          <div class="chart-wrap" aria-label="Mood chart">
-            <canvas id="moodChart"></canvas>
+          <div class="suggestion-actions">
+            <button id="btnAdvice" type="button" class="chip">Gentle advice</button>
+            <button id="btnQuote" type="button" class="chip">Encouraging quote</button>
+            <button id="btnActivity" type="button" class="chip">Small activity</button>
           </div>
+          <output id="suggestionOut" aria-live="polite"></output>
+        </section>
+      </article>
+    </section>
 
-          <div class="history-actions">
-            <button id="exportBtn" class="secondary" type="button">
-              Export as JSON
-            </button>
-            <button id="clearAllBtn" class="ghost" type="button">
-              Clear all entries
-            </button>
-          </div>
-        </article>
+    <!-- HISTORY VIEW -->
+    <section id="history" class="view" aria-label="History">
+      <article class="card">
+        <h2>Mood trend</h2>
+        <p class="lead small">
+          This shows the last two weeks. Gaps mean days with no entry.
+        </p>
+        <div class="chart-wrap">
+          <canvas id="moodChart" aria-label="Mood over time" role="img"></canvas>
+        </div>
+      </article>
 
-        <article class="card card-soft">
-          <h3>Entries</h3>
-          <ul id="entryList" class="entries"></ul>
-        </article>
-      </section>
-    </main>
+      <article class="card card-soft">
+        <h3>Entries</h3>
+        <ul id="entryList" class="entries" aria-label="Logged entries"></ul>
+        <div class="history-actions">
+          <button id="exportBtn" type="button" class="secondary">Export history (JSON)</button>
+          <button id="clearAllBtn" type="button" class="ghost">Clear all</button>
+        </div>
+      </article>
+    </section>
+  </main>
 
-    <footer class="app-footer">
-      <p>WellMe – prototype wellbeing tool for coursework use only.</p>
-    </footer>
-  </body>
+  <footer class="app-footer">
+    <p>WellMe is a study artefact to support reflective mood tracking for neurodiverse learners.</p>
+  </footer>
+
+  <!-- Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Main application script -->
+  <script src="script.js"></script>
+</body>
 </html>
