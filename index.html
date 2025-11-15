@@ -24,21 +24,22 @@
     <button class="nav-btn" data-target="history" aria-controls="history">History</button>
   </nav>
 
-  <div id="reminder" class="reminder" role="status" aria-live="polite" hidden>
+<div id="reminder" class="reminder" role="status" aria-live="polite" hidden>
   <div class="reminder-text">
     <strong>Gentle nudge</strong>
     <span>Would you like to log today’s mood?</span>
   </div>
   <div class="reminder-actions">
     <button id="reminderLogBtn" class="primary">Log now</button>
-
     <button
       id="reminderDismissBtn"
       class="ghost"
-      onclick="document.getElementById('reminder').hidden = true"
+      onclick="this.closest('.reminder').style.display='none'"
     >
       Dismiss
     </button>
+  </div>
+</div>
 
   </div>
 </div>
