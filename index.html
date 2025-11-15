@@ -25,15 +25,23 @@
   </nav>
 
   <div id="reminder" class="reminder" role="status" aria-live="polite" hidden>
-    <div class="reminder-text">
-      <strong>Gentle nudge</strong>
-      <span>Would you like to log today’s mood?</span>
-    </div>
-    <div class="reminder-actions">
-      <button id="reminderLogBtn" class="primary">Log now</button>
-      <button id="reminderDismissBtn" class="ghost">Dismiss</button>
-    </div>
+  <div class="reminder-text">
+    <strong>Gentle nudge</strong>
+    <span>Would you like to log today’s mood?</span>
   </div>
+  <div class="reminder-actions">
+    <button id="reminderLogBtn" class="primary">Log now</button>
+
+    <button
+      id="reminderDismissBtn"
+      class="ghost"
+      onclick="document.getElementById('reminder').hidden = true"
+    >
+      Dismiss
+    </button>
+
+  </div>
+</div>
 
   <main id="views" class="app-main">
     <!-- Home -->
