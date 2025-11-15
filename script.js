@@ -1,320 +1,405 @@
-/* WellMe: Mood Tracking + Suggestions App */
+/* WellMe — main JS with enhanced UI, safe prompts, and summary badges */
 
-// ------------------------------
-// ELEMENT REFERENCES
-// ------------------------------
-const moodBtns = document.querySelectorAll("[data-mood]");
-const noteInput = document.getElementById("noteInput");
-const saveEntryBtn = document.getElementById("saveEntry");
-const cancelEntryBtn = document.getElementById("cancelEntry");
-const reminderYesBtn = document.getElementById("reminderYes");
-const reminderNoBtn = document.getElementById("reminderNo");
-const reminderBanner = document.getElementById("reminderBanner");
+const THEME_KEY = "wellme_theme";
+const ENTRIES_KEY = "wellme_entries";
+const REMINDER_KEY = "wellme_last_reminder";
 
-const adviceBtn = document.getElementById("adviceBtn");
-const quoteBtn = document.getElementById("quoteBtn");
-const activityBtn = document.getElementById("activityBtn");
+// Views & navigation
+const views = document.querySelectorAll(".view");
+const navBtns = document.querySelectorAll(".nav-btn");
+
+// Theme & reminder
+const themeToggle = document.getElementById("themeToggle");
+const reminder = document.getElementById("reminder");
+const reminderLogBtn = document.getElementById("reminderLogBtn");
+const reminderDismissBtn = document.getElementById("reminderDismissBtn");
+
+// Log view
+let selectedMood = null;
+const moodButtons = document.querySelectorAll(".mood");
+const form = document.getElementById("entryForm");
+const noteGood = document.getElementById("noteGood");
+const noteTomorrow = document.getElementById("noteTomorrow");
+const clearTodayBtn = document.getElementById("clearToday");
+
+// History view
+const entryList = document.getElementById("entryList");
+const exportBtn = document.getElementById("exportBtn");
+const clearAllBtn = document.getElementById("clearAllBtn");
+let chart;
+
+// Suggestions
+const btnAdvice = document.getElementById("btnAdvice");
+const btnQuote = document.getElementById("btnQuote");
+const btnActivity = document.getElementById("btnActivity");
 const suggestionOut = document.getElementById("suggestionOut");
 
-const entriesList = document.getElementById("entriesList");
-const clearHistoryBtn = document.getElementById("clearHistory");
-const exportHistoryBtn = document.getElementById("exportHistory");
+/* ---------------- Theme ---------------- */
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem(THEME_KEY, theme);
+  if (themeToggle) {
+    themeToggle.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
+    themeToggle.textContent = theme === "dark" ? "☀️" : "🌙";
+  }
+}
 
-const chartCanvas = document.getElementById("moodChart");
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || "light"; // default to light
+  setTheme(saved);
+}
 
-const viewBtns = document.querySelectorAll("[data-view]");
-const views = document.querySelectorAll(".view");
+themeToggle?.addEventListener("click", () => {
+  const current = localStorage.getItem(THEME_KEY) || "light";
+  const next = current === "light" ? "dark" : "light";
+  setTheme(next);
+});
 
-const themeToggleBtn = document.getElementById("themeToggle");
+/* ---------------- Navigation ---------------- */
+function switchView(id) {
+  // sections
+  views.forEach(v => v.classList.remove("active"));
+  const targetView = document.getElementById(id);
+  if (targetView) targetView.classList.add("active");
 
-// ------------------------------
-// STATE
-// ------------------------------
-let selectedMood = null;
-let entries = JSON.parse(localStorage.getItem("wellme-entries") || "[]");
+  // nav buttons
+  navBtns.forEach(btn => {
+    if (btn.dataset.target === id) btn.classList.add("active");
+    else btn.classList.remove("active");
+  });
 
-let moodChart = null;
+  // focus heading
+  const heading = document.querySelector(`#${id} h2`);
+  if (heading && typeof heading.focus === "function") heading.focus();
 
-// ------------------------------
-// VIEW SWITCHING
-// ------------------------------
-viewBtns.forEach(btn => {
+  if (id === "history") {
+    renderEntries();
+    renderChart();
+  }
+  if (id === "home") {
+    updateSummaryBadges();
+  }
+}
+
+navBtns.forEach(btn => {
   btn.addEventListener("click", () => {
-    const target = btn.dataset.view;
-
-    // Update nav styling
-    viewBtns.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    // Toggle views
-    views.forEach(v => {
-      v.classList.remove("active");
-      if (v.id === target) v.classList.add("active");
-    });
-
-    if (target === "history") {
-      renderEntries();
-      updateChart();
-    }
+    const target = btn.dataset.target;
+    if (target) switchView(target);
   });
 });
 
-// ------------------------------
-// THEME TOGGLE
-// ------------------------------
-themeToggleBtn.addEventListener("click", () => {
-  const isLight = document.documentElement.getAttribute("data-theme") === "light";
-  document.documentElement.setAttribute("data-theme", isLight ? "dark" : "light");
-  localStorage.setItem("wellme-theme", isLight ? "dark" : "light");
+/* ---------------- Reminder banner ---------------- */
+function isoDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function showReminderIfNeeded() {
+  if (!reminder) return;
+  const entries = getEntries();
+  const today = isoDate(new Date());
+  const hasToday = entries.some(e => e.date === today);
+  const lastShown = localStorage.getItem(REMINDER_KEY);
+  const shownToday = lastShown === today;
+
+  if (!hasToday && !shownToday) {
+    reminder.hidden = false;
+  }
+}
+
+reminderLogBtn?.addEventListener("click", () => {
+  localStorage.setItem(REMINDER_KEY, isoDate(new Date()));
+  if (reminder) reminder.hidden = true;
+  switchView("log");
 });
 
-// Load saved theme
-document.documentElement.setAttribute(
-  "data-theme",
-  localStorage.getItem("wellme-theme") || "dark"
-);
+reminderDismissBtn?.addEventListener("click", () => {
+  localStorage.setItem(REMINDER_KEY, isoDate(new Date()));
+  if (reminder) reminder.hidden = true;
+});
 
-// ------------------------------
-// MOOD SELECTION
-// ------------------------------
-moodBtns.forEach(btn => {
+/* ---------------- Entries CRUD ---------------- */
+function getEntries() {
+  try {
+    return JSON.parse(localStorage.getItem(ENTRIES_KEY)) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function saveEntries(entries) {
+  localStorage.setItem(ENTRIES_KEY, JSON.stringify(entries));
+}
+
+// mood select
+moodButtons.forEach(btn => {
   btn.addEventListener("click", () => {
-    moodBtns.forEach(b => b.classList.remove("selected"));
+    moodButtons.forEach(b => b.classList.remove("selected"));
     btn.classList.add("selected");
-    selectedMood = btn.dataset.mood;
+    selectedMood = Number(btn.dataset.value);
   });
 });
 
-// ------------------------------
-// SAVE ENTRY
-// ------------------------------
-saveEntryBtn.addEventListener("click", () => {
+form?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const today = isoDate(new Date());
   if (!selectedMood) {
-    alert("Please choose a mood first.");
+    alert("Please select a mood emoji to save your entry.");
     return;
   }
 
   const entry = {
+    date: today,
     mood: selectedMood,
-    note: noteInput.value.trim(),
-    date: new Date().toISOString()
+    noteGood: (noteGood?.value ?? "").trim(),
+    noteTomorrow: (noteTomorrow?.value ?? "").trim()
   };
 
-  entries.push(entry);
-  localStorage.setItem("wellme-entries", JSON.stringify(entries));
+  const entries = getEntries();
+  const idx = entries.findIndex(e => e.date === today);
+  if (idx >= 0) entries[idx] = entry;
+  else entries.push(entry);
 
-  // Reset form
-  moodBtns.forEach(b => b.classList.remove("selected"));
+  entries.sort((a, b) => a.date.localeCompare(b.date));
+  saveEntries(entries);
+  localStorage.setItem(REMINDER_KEY, today);
+
+  if (noteGood) noteGood.value = "";
+  if (noteTomorrow) noteTomorrow.value = "";
+  moodButtons.forEach(b => b.classList.remove("selected"));
   selectedMood = null;
-  noteInput.value = "";
 
-  alert("Entry saved!");
-
-  // Switch to history to show the entry
-  document.querySelector('[data-view="history"]').click();
+  alert("Entry saved ✔");
+  updateSummaryBadges();
+  switchView("history");
 });
 
-// ------------------------------
-// CANCEL ENTRY
-// ------------------------------
-cancelEntryBtn.addEventListener("click", () => {
-  moodBtns.forEach(b => b.classList.remove("selected"));
+clearTodayBtn?.addEventListener("click", () => {
+  if (noteGood) noteGood.value = "";
+  if (noteTomorrow) noteTomorrow.value = "";
+  moodButtons.forEach(b => b.classList.remove("selected"));
   selectedMood = null;
-  noteInput.value = "";
 });
 
-// ------------------------------
-// SUGGESTION API BUTTONS
-// ------------------------------
-adviceBtn.addEventListener("click", async () => {
-  suggestionOut.textContent = "Loading…";
-  try {
-    const response = await fetch("https://api.adviceslip.com/advice");
-    const data = await response.json();
-    suggestionOut.textContent = data.slip.advice;
-  } catch {
-    suggestionOut.textContent = "Could not load advice.";
-  }
-});
+/* ---------------- Home summary badges ---------------- */
+function updateSummaryBadges() {
+  const entries = getEntries();
+  const lastEl = document.getElementById("lastEntrySummary");
+  const daysEl = document.getElementById("daysLoggedSummary");
+  if (!lastEl || !daysEl) return;
 
-quoteBtn.addEventListener("click", async () => {
-  suggestionOut.textContent = "Loading…";
-  try {
-    const response = await fetch("https://api.quotable.io/random");
-    const data = await response.json();
-    suggestionOut.textContent = data.content;
-  } catch {
-    suggestionOut.textContent = "Could not load quote.";
-  }
-});
-
-activityBtn.addEventListener("click", async () => {
-  suggestionOut.textContent = "Loading…";
-  try {
-    const response = await fetch("https://www.boredapi.com/api/activity/");
-    const data = await response.json();
-    suggestionOut.textContent = data.activity;
-  } catch {
-    suggestionOut.textContent = "Could not load activity.";
-  }
-});
-
-// ------------------------------
-// RENDER HISTORY
-// ------------------------------
-function renderEntries() {
-  entriesList.innerHTML = "";
-
-  entries
-    .slice()
-    .reverse()
-    .forEach((entry, index) => {
-      const li = document.createElement("li");
-      li.className = "entry";
-
-      const readableDate = new Date(entry.date).toLocaleString();
-
-      li.innerHTML = `
-        <div class="entry-head">
-          <div class="entry-meta">${readableDate}</div>
-          <div class="entry-actions">
-            <button class="ghost" data-del="${index}">Delete</button>
-          </div>
-        </div>
-        <div><strong>Mood:</strong> ${entry.mood}</div>
-        ${entry.note ? `<div><strong>Note:</strong> ${entry.note}</div>` : ""}
-      `;
-
-      entriesList.appendChild(li);
-    });
-
-  // Delete buttons
-  document.querySelectorAll("[data-del]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const originalIndex = entries.length - 1 - Number(btn.dataset.del);
-      entries.splice(originalIndex, 1);
-      localStorage.setItem("wellme-entries", JSON.stringify(entries));
-      renderEntries();
-      updateChart();
-    });
-  });
-}
-
-// ------------------------------
-// CLEAR HISTORY
-// ------------------------------
-clearHistoryBtn.addEventListener("click", () => {
-  if (!confirm("Are you sure you want to delete all entries?")) return;
-  entries = [];
-  localStorage.setItem("wellme-entries", "[]");
-  renderEntries();
-  updateChart();
-});
-
-// ------------------------------
-// EXPORT HISTORY (TEXT FILE)
-// ------------------------------
-exportHistoryBtn.addEventListener("click", () => {
   if (entries.length === 0) {
-    alert("No entries to export.");
+    lastEl.textContent = "No entries yet";
+    daysEl.textContent = "0";
     return;
   }
 
-  let text = "WellMe Mood History\n\n";
-  entries.forEach(e => {
-    text += `${new Date(e.date).toLocaleString()} - Mood: ${e.mood}\n`;
-    if (e.note) text += `Note: ${e.note}\n`;
-    text += "\n";
+  const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+  const last = sorted[sorted.length - 1];
+  const emoji = ["😞", "🙁", "😐", "🙂", "😄"][last.mood - 1] || "";
+  lastEl.textContent = `${last.date} • Mood ${last.mood} ${emoji}`;
+  daysEl.textContent = String(sorted.length);
+}
+
+/* ---------------- History list ---------------- */
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[s]));
+}
+
+function renderEntries() {
+  if (!entryList) return;
+  const entries = getEntries();
+  entryList.innerHTML = "";
+
+  if (entries.length === 0) {
+    const li = document.createElement("li");
+    li.className = "entry";
+    li.innerHTML = "<em>No entries yet.</em>";
+    entryList.appendChild(li);
+    return;
+  }
+
+  [...entries].reverse().forEach(e => {
+    const li = document.createElement("li");
+    li.className = "entry";
+    const moodEmoji = ["😞", "🙁", "😐", "🙂", "😄"][e.mood - 1];
+
+    li.innerHTML = `
+      <div class="entry-head">
+        <div class="entry-meta">
+          <strong>${e.date}</strong> • Mood ${e.mood} ${moodEmoji}
+        </div>
+        <div class="entry-actions">
+          <button class="ghost" data-del="${e.date}">Delete</button>
+        </div>
+      </div>
+      ${e.noteGood ? `<div><strong>Went well:</strong> ${escapeHtml(e.noteGood)}</div>` : ""}
+      ${e.noteTomorrow ? `<div><strong>Intention:</strong> ${escapeHtml(e.noteTomorrow)}</div>` : ""}
+    `;
+    entryList.appendChild(li);
   });
 
-  const blob = new Blob([text], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "WellMe-history.txt";
-  a.click();
-
-  URL.revokeObjectURL(url);
-});
-
-// ------------------------------
-// CHART.JS MOOD CHART
-// ------------------------------
-function updateChart() {
-  if (!chartCanvas) return;
-
-  const labels = entries.map(e => new Date(e.date).toLocaleDateString());
-  const data = entries.map(e => {
-    switch (e.mood) {
-      case "Awful": return 1;
-      case "Bad": return 2;
-      case "Okay": return 3;
-      case "Good": return 4;
-      case "Great": return 5;
-      default: return 3;
-    }
+  entryList.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const date = btn.getAttribute("data-del");
+      const remaining = getEntries().filter(x => x.date !== date);
+      saveEntries(remaining);
+      renderEntries();
+      renderChart();
+      updateSummaryBadges();
+    });
   });
+}
 
-  if (moodChart) moodChart.destroy();
+/* ---------------- Chart: last 14 days ---------------- */
+function renderChart() {
+  const ctx = document.getElementById("moodChart");
+  if (!ctx || typeof Chart === "undefined") return;
 
-  moodChart = new Chart(chartCanvas, {
+  const entries = getEntries();
+  const days = [];
+  const today = new Date();
+
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push(isoDate(d));
+  }
+
+  const map = Object.fromEntries(entries.map(e => [e.date, e.mood]));
+  const data = days.map(d => map[d] ?? null);
+
+  if (chart) chart.destroy();
+
+  chart = new Chart(ctx, {
     type: "line",
     data: {
-      labels,
+      labels: days,
       datasets: [{
-        label: "Mood Over Time",
+        label: "Mood (1–5)",
         data,
-        tension: 0.25,
-        borderWidth: 3,
-        borderColor: "#38bdf8",
-        pointRadius: 4,
-        pointBackgroundColor: "#38bdf8",
-        fill: false
+        tension: 0.3,
+        borderWidth: 2,
+        pointRadius: 3
       }]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
       scales: {
-        y: {
-          min: 1,
-          max: 5,
-          ticks: { stepSize: 1, color: "#e5e7eb" }
-        },
-        x: { ticks: { color: "#e5e7eb" } }
+        y: { suggestedMin: 1, suggestedMax: 5, ticks: { stepSize: 1 } }
       },
-      plugins: {
-        legend: { labels: { color: "#e5e7eb" } }
-      }
+      plugins: { legend: { display: false } }
     }
   });
 }
 
-// ------------------------------
-// REMINDER SYSTEM
-// ------------------------------
-const reminderSet = localStorage.getItem("wellme-reminder");
+/* ---------------- Export / clear ---------------- */
+exportBtn?.addEventListener("click", () => {
+  const entries = getEntries();
+  const blob = new Blob([JSON.stringify(entries, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "wellme-entries.json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
 
-if (reminderSet === "yes") {
-  reminderBanner.style.display = "none";
-} else if (reminderSet === "no") {
-  reminderBanner.style.display = "none";
-} else {
-  reminderBanner.style.display = "flex";
+clearAllBtn?.addEventListener("click", () => {
+  if (confirm("Clear all entries? This cannot be undone.")) {
+    localStorage.removeItem(ENTRIES_KEY);
+    renderEntries();
+    renderChart();
+    updateSummaryBadges();
+  }
+});
+
+/* ---------- Safe suggestion prompts ---------- */
+const BLOCKLIST = [
+  "bleach","suicide","kill","die","harm","self-harm","violence","weapon","drugs","overdose","starve",
+  "anorexia","bulimia","purge","cutting","abuse","racist","sex","nsfw","terror","bomb","gun"
+];
+
+const FALLBACK_ADVICE = [
+  "Name one thing that went okay today.",
+  "Drink some water and take three slow breaths.",
+  "Pick the smallest next step and do just that.",
+  "Set a 5-minute timer and start. Stop when it ends.",
+  "Text someone a thank-you or a simple emoji."
+];
+
+const FALLBACK_QUOTES = [
+  "Small steps add up.",
+  "You don’t need to feel ready to begin.",
+  "Done is kinder than perfect.",
+  "Your pace is valid.",
+  "Future you will thank you for any tiny progress."
+];
+
+const FALLBACK_ACTIVITIES = [
+  "Stretch your neck and shoulders.",
+  "Sit by a window for two minutes.",
+  "Organise one file or one tab.",
+  "Write one sentence about today.",
+  "Put a glass of water within reach."
+];
+
+function isSafeText(t) {
+  if (!t) return false;
+  const lower = String(t).toLowerCase();
+  return !BLOCKLIST.some(b => lower.includes(b));
 }
 
-reminderYesBtn.addEventListener("click", () => {
-  localStorage.setItem("wellme-reminder", "yes");
-  reminderBanner.style.display = "none";
-  alert("You’ll now get daily reminder prompts!");
+async function safeFetch(url, pick) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), 6000);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) throw new Error("Network error");
+    const data = await res.json();
+    clearTimeout(t);
+    const txt = pick(data);
+    if (isSafeText(txt)) return txt;
+    return null;
+  } catch {
+    clearTimeout(t);
+    return null;
+  }
+}
+
+function choose(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+btnAdvice?.addEventListener("click", async () => {
+  suggestionOut.textContent = "Loading…";
+  const txt = await safeFetch("https://api.adviceslip.com/advice", d => d.slip?.advice);
+  suggestionOut.textContent = txt || choose(FALLBACK_ADVICE);
 });
 
-reminderNoBtn.addEventListener("click", () => {
-  localStorage.setItem("wellme-reminder", "no");
-  reminderBanner.style.display = "none";
+btnQuote?.addEventListener("click", async () => {
+  suggestionOut.textContent = "Loading…";
+  const txt = await safeFetch("https://api.quotable.io/random", d => `${d.content} — ${d.author}`);
+  suggestionOut.textContent = txt || choose(FALLBACK_QUOTES);
 });
 
-// ------------------------------
-// INITIAL RENDER
-// ------------------------------
+btnActivity?.addEventListener("click", async () => {
+  suggestionOut.textContent = "Loading…";
+  const txt = await safeFetch("https://www.boredapi.com/api/activity", d => d.activity);
+  suggestionOut.textContent = txt || choose(FALLBACK_ACTIVITIES);
+});
+
+/* ---------------- Boot ---------------- */
+initTheme();
+showReminderIfNeeded();
 renderEntries();
-updateChart();
+renderChart();
+updateSummaryBadges();
