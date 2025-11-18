@@ -98,17 +98,10 @@ function switchView(id) {
   }
 }
 
-// Also wire up any other buttons that use data-target (e.g. Home CTA buttons)
+// Attach navigation to ALL buttons that have data-target (nav + home CTAs)
 const targetButtons = document.querySelectorAll("button[data-target]");
 
 targetButtons.forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const target = btn.dataset.target;
-    if (target) switchView(target);
-  });
-});
-
-navBtns.forEach((btn) => {
   btn.addEventListener("click", () => {
     const target = btn.dataset.target;
     if (target) switchView(target);
@@ -125,33 +118,51 @@ themeToggle?.addEventListener("click", () => {
 
 /* Reminder logic */
 
-function showReminderIfNeeded() {
-  if (!reminder) return;
+function shouldShowReminder() {
+  if (!reminder) return false;
 
   const entries = getEntries();
   const today = isoDate(new Date());
   const hasEntryToday = entries.some((e) => e.date === today);
-  const lastShown = localStorage.getItem(REMINDER_KEY);
-  const alreadyShownToday = lastShown === today;
+  const lastDismissed = localStorage.getItem(REMINDER_KEY);
+  const dismissedToday = lastDismissed === today;
 
-  if (!hasEntryToday && !alreadyShownToday) {
+  // Show reminder only if: no entry today AND not dismissed/logged today
+  return !hasEntryToday && !dismissedToday;
+}
+
+function updateReminderVisibility() {
+  if (!reminder) return;
+
+  if (shouldShowReminder()) {
     reminder.hidden = false;
+    reminder.style.display = "flex";
   } else {
     reminder.hidden = true;
+    reminder.style.display = "none";
   }
 }
 
+// "Log now" from reminder
 reminderLogBtn?.addEventListener("click", () => {
   const today = isoDate(new Date());
   localStorage.setItem(REMINDER_KEY, today);
-  reminder.hidden = true;
+  if (reminder) {
+    reminder.hidden = true;
+    reminder.style.display = "none";
+  }
   switchView("log");
 });
 
+// "Dismiss" reminder
 reminderDismissBtn?.addEventListener("click", () => {
   const today = isoDate(new Date());
   localStorage.setItem(REMINDER_KEY, today);
-  reminder.hidden = true;
+
+  if (reminder) {
+    reminder.hidden = true;
+    reminder.style.display = "none";
+  }
 });
 
 /* Mood selection */
@@ -522,7 +533,7 @@ btnActivity?.addEventListener("click", async () => {
 /* Initial boot sequence */
 
 initTheme();
-showReminderIfNeeded();
+updateReminderVisibility();
 updateSummary();
 renderEntries();
 renderChart();
