@@ -98,6 +98,16 @@ function switchView(id) {
   }
 }
 
+// Also wire up any other buttons that use data-target (e.g. Home CTA buttons)
+const targetButtons = document.querySelectorAll("button[data-target]");
+
+targetButtons.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const target = btn.dataset.target;
+    if (target) switchView(target);
+  });
+});
+
 navBtns.forEach((btn) => {
   btn.addEventListener("click", () => {
     const target = btn.dataset.target;
